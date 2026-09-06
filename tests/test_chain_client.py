@@ -14,6 +14,7 @@ from provenance_pipeline.chain.client import (
     RPCConnectionError,
     WrongChainError,
     anchor_claim,
+    transaction_hash_hex,
     verify_claim,
 )
 
@@ -99,6 +100,31 @@ def test_verify_claim_classifies_malformed_record_as_chain_error(monkeypatch) ->
 
     with pytest.raises(ChainClientError, match="Registry verify call failed"):
         verify_claim(FINGERPRINT)
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (bytes.fromhex("ab" * 32), "0x" + "ab" * 32),
+        ("0x" + "AB" * 32, "0x" + "ab" * 32),
+    ],
+)
+def test_transaction_hash_hex_normalizes_confirmed_hash(value, expected) -> None:
+    assert transaction_hash_hex({"transactionHash": value}) == expected
+
+
+@pytest.mark.parametrize(
+    "receipt",
+    [
+        {},
+        {"transactionHash": "not-a-hash"},
+        {"transactionHash": b"too-short"},
+        {"transactionHash": "0x" + "ab" * 31},
+    ],
+)
+def test_transaction_hash_hex_rejects_malformed_hash(receipt) -> None:
+    with pytest.raises(AnchorOutcomeUnknown, match="transaction hash is invalid"):
+        transaction_hash_hex(receipt)
 
 
 @pytest.mark.parametrize("operation", ["send_raw_transaction", "wait_for_transaction_receipt"])

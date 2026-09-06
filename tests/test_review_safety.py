@@ -40,6 +40,25 @@ def test_uncertain_anchor_cannot_resubmit(client, monkeypatch):
     assert api._sessions[sid].uploaded_photo is None
 
 
+def test_malformed_success_receipt_cannot_resubmit(client, monkeypatch):
+    sid = session(client, monkeypatch)
+    pin = Mock(return_value='bafkfixture')
+    anchor = Mock(return_value={'status': 1, 'transactionHash': 'not-a-hash'})
+    monkeypatch.setattr(api, 'pin_json', pin)
+    monkeypatch.setattr(api, 'anchor_claim', anchor)
+
+    for _ in range(2):
+        response = client.post(
+            f'/api/sessions/{sid}/confirm', json={'candidate_index': 0}
+        )
+        assert response.status_code == 409
+        assert 'outcome is unknown' in response.text
+
+    assert pin.call_count == anchor.call_count == 1
+    assert api._sessions[sid].lifecycle == 'uncertain'
+    assert api._sessions[sid].uploaded_photo is None
+
+
 def test_prebroadcast_retry_reuses_exact_pinned_cid(client, monkeypatch):
     sid = session(client, monkeypatch)
     pin = Mock(return_value='bafkfixture')
