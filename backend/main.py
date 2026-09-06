@@ -532,7 +532,7 @@ async def create_session(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="auto_threshold must be a finite value from -1 to 1",
         )
-    content_type = (photo.content_type or "").lower()
+    content_type = (photo.content_type or "").partition(";")[0].strip().casefold()
     if content_type not in ALLOWED_IMAGE_TYPES:
         await photo.close()
         raise HTTPException(

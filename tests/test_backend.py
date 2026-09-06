@@ -364,6 +364,25 @@ def test_consent_and_upload_validation_happen_before_pipeline(
     assert oversized.status_code == 413
 
 
+def test_upload_accepts_supported_media_type_parameters(client, monkeypatch) -> None:
+    subject, candidates, ranked = _fixtures()
+    _mock_search_pipeline(monkeypatch, subject, candidates, ranked)
+
+    response = client.post(
+        "/api/sessions",
+        data={"consent": "true"},
+        files={
+            "photo": (
+                "sample.jpg",
+                _photo_bytes(),
+                "Image/JPEG; charset=binary",
+            )
+        },
+    )
+
+    assert response.status_code == 201
+
+
 def test_review_confirmation_requires_valid_index(client, monkeypatch) -> None:
     subject, candidates, ranked = _fixtures()
     _mock_search_pipeline(monkeypatch, subject, candidates, ranked)
