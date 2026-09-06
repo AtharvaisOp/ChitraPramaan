@@ -9,6 +9,7 @@ limiter for multi-instance and distributed abuse protection.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 import os
 from threading import RLock
 import time
@@ -73,12 +74,13 @@ class SlidingWindowLimiter:
                     self._events.pop(key, None)
             client_events = self._events.get(client_key, [])
             global_events = self._events.get(global_key, [])
-            if len(client_events) >= limit.per_client or len(global_events) >= limit.global_limit:
-                oldest = min(
-                    (client_events[0] if client_events else current),
-                    (global_events[0] if global_events else current),
-                )
-                return max(1, int(self.window_seconds - (current - oldest)) + 1)
+            blocked_until: list[float] = []
+            if len(client_events) >= limit.per_client:
+                blocked_until.append(client_events[0] + self.window_seconds)
+            if len(global_events) >= limit.global_limit:
+                blocked_until.append(global_events[0] + self.window_seconds)
+            if blocked_until:
+                return max(1, math.ceil(max(blocked_until) - current))
             self._events[client_key] = [*client_events, current]
             self._events[global_key] = [*global_events, current]
         return None

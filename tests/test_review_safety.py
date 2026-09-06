@@ -191,11 +191,15 @@ def test_expiry_clears_raw_data(client, monkeypatch):
     assert state.uploaded_photo is None and state.query_embedding is None
 
 
-def test_provider_error_never_reaches_response(client, monkeypatch):
+def test_provider_error_never_reaches_response_or_logs(client, monkeypatch, caplog):
+    caplog.set_level("ERROR", logger="backend.main")
     monkeypatch.setattr(api, '_process_upload', Mock(side_effect=api.ReverseSearchError('credential fixture-secret')))
     response = client.post('/api/sessions', data={'consent': 'true'}, files={'photo': ('a.jpg', _photo_bytes(), 'image/jpeg')})
     assert response.status_code == 502
     assert 'fixture-secret' not in response.text
+    assert 'fixture-secret' not in caplog.text
+    assert 'category=unclassified' in caplog.text
+    assert 'exception=ReverseSearchError' in caplog.text
 
 
 @pytest.mark.parametrize('address', ['127.0.0.1', '10.0.0.1', '169.254.169.254', '::1'])

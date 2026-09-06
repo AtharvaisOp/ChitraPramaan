@@ -339,15 +339,14 @@ def verify_claim(fingerprint_hex: str) -> dict:
         exists, submitter, timestamp, uri = contract.functions.verify(
             fingerprint
         ).call()
+        return {
+            "exists": bool(exists),
+            "submitter": str(submitter),
+            "timestamp": int(timestamp),
+            "uri": str(uri),
+        }
     except Exception as exc:
         raise ChainClientError("Registry verify call failed") from exc
-
-    return {
-        "exists": bool(exists),
-        "submitter": str(submitter),
-        "timestamp": int(timestamp),
-        "uri": str(uri),
-    }
 
 
 def transaction_hash_hex(receipt: TxReceipt | dict) -> str:
