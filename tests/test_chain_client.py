@@ -88,6 +88,19 @@ def test_verify_claim_returns_named_record_fields(monkeypatch) -> None:
     }
 
 
+def test_verify_claim_classifies_malformed_record_as_chain_error(monkeypatch) -> None:
+    _, contract, _ = _mock_chain(monkeypatch)
+    contract.functions.verify.return_value.call.return_value = (
+        True,
+        "0x2222222222222222222222222222222222222222",
+        "not-a-timestamp",
+        CID,
+    )
+
+    with pytest.raises(ChainClientError, match="Registry verify call failed"):
+        verify_claim(FINGERPRINT)
+
+
 @pytest.mark.parametrize("operation", ["send_raw_transaction", "wait_for_transaction_receipt"])
 def test_broadcast_or_receipt_error_is_an_unknown_outcome(monkeypatch, operation):
     web3, _, _ = _mock_chain(monkeypatch)
