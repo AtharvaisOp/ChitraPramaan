@@ -184,6 +184,17 @@ def _log_analysis_perf(perf: AnalysisPerf) -> None:
     logger.info("[analysis_perf] %s", json.dumps(payload, separators=(",", ":")))
 
 
+def _log_search_failure(level: int, category: str, error: Exception) -> None:
+    """Log provider failure metadata without including upstream details."""
+
+    logger.log(
+        level,
+        "Search provider failure category=%s exception=%s",
+        category,
+        type(error).__name__,
+    )
+
+
 class CandidateResponse(BaseModel):
     index: int
     url: str
@@ -561,37 +572,37 @@ async def create_session(
             _process_upload, uploaded_photo, auto_threshold, perf
         )
     except SearchNotConfigured as exc:
-        logger.warning("Search provider not configured: %s", exc)
+        _log_search_failure(logging.WARNING, "not_configured", exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Source search is not configured on this server.",
         ) from exc
     except SearchAuthError as exc:
-        logger.error("Search provider auth failure: %s", exc)
+        _log_search_failure(logging.ERROR, "authentication", exc)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="The source-search service rejected the server credentials.",
         ) from exc
     except SearchRateLimited as exc:
-        logger.warning("Search provider rate limited: %s", exc)
+        _log_search_failure(logging.WARNING, "rate_limited", exc)
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="The source-search service is temporarily rate-limited or has reached its quota.",
         ) from exc
     except SearchProviderUnavailable as exc:
-        logger.error("Search provider unavailable: %s", exc)
+        _log_search_failure(logging.ERROR, "unavailable", exc)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="The source-search service is temporarily unavailable.",
         ) from exc
     except SearchResponseInvalid as exc:
-        logger.error("Search provider invalid response: %s", exc)
+        _log_search_failure(logging.ERROR, "invalid_response", exc)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="The source-search service returned an unexpected response.",
         ) from exc
     except ReverseSearchError as exc:
-        logger.error("Search provider error: %s", exc)
+        _log_search_failure(logging.ERROR, "unclassified", exc)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Source search is unavailable. Check the backend search-provider configuration or try again later.",
