@@ -226,7 +226,11 @@ def test_oversized_claim_is_integrity_failure_without_fallback(monkeypatch) -> N
     assert calls == [f"{PRIMARY}/{CID}"]
 
 
-def test_invalid_cid_is_rejected_before_gateway_request(monkeypatch) -> None:
+@pytest.mark.parametrize(
+    "uri",
+    ["ipfs://not-a-valid-cid", "definitelynotacid", "BAFYUPPERCASECID"],
+)
+def test_invalid_cid_is_rejected_before_gateway_request(monkeypatch, uri) -> None:
     monkeypatch.setattr(
         "provenance_pipeline.verification.requests.get",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(
@@ -235,7 +239,7 @@ def test_invalid_cid_is_rejected_before_gateway_request(monkeypatch) -> None:
     )
 
     with pytest.raises(IPFSClaimInvalid, match="valid CID"):
-        fetch_ipfs_json("ipfs://not-a-valid-cid", PRIMARY, FALLBACK)
+        fetch_ipfs_json(uri, PRIMARY, FALLBACK)
 
 
 def test_malformed_claim_is_hard_failure_without_gateway_shopping(

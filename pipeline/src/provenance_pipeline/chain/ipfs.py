@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import os
-import re
 from typing import Any
 
 import requests
 
+from provenance_pipeline.chain.cid import normalize_ipfs_cid
+
 
 PINATA_JSON_ENDPOINT = "https://api.pinata.cloud/pinning/pinJSONToIPFS"
 PIN_TIMEOUT = (10, 60)
-CID_PATTERN = re.compile(r"[A-Za-z0-9]{10,200}\Z")
 
 
 class IPFSPinningError(RuntimeError):
@@ -69,7 +69,7 @@ def pin_json(data: dict) -> str:
 
     if not isinstance(result, dict):
         raise IPFSPinningError("Pinata returned an invalid payload")
-    cid = result.get("IpfsHash")
-    if not isinstance(cid, str) or CID_PATTERN.fullmatch(cid.strip()) is None:
-        raise IPFSPinningError("Pinata returned an invalid IPFS CID")
-    return cid.strip()
+    try:
+        return normalize_ipfs_cid(result.get("IpfsHash"))
+    except (TypeError, ValueError) as exc:
+        raise IPFSPinningError("Pinata returned an invalid IPFS CID") from exc

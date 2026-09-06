@@ -45,3 +45,23 @@ def test_pin_json_rejects_non_claim_payload(monkeypatch) -> None:
 
     with pytest.raises(ValueError, match="exactly"):
         pin_json({"fingerprint_body": {}})
+
+
+def test_pin_json_rejects_provider_payload_with_malformed_cid(monkeypatch) -> None:
+    claim = build_claim(**BASE_VALUES)
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"IpfsHash": "definitelynotacid"}
+
+    monkeypatch.setenv("PINATA_JWT", "fixture-jwt")
+    monkeypatch.setattr(
+        "provenance_pipeline.chain.ipfs.requests.post",
+        lambda *_args, **_kwargs: FakeResponse(),
+    )
+
+    with pytest.raises(IPFSPinningError, match="invalid IPFS CID"):
+        pin_json(claim)
