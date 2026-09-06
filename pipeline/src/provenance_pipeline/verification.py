@@ -12,6 +12,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import requests
 
+from provenance_pipeline.chain.cid import normalize_ipfs_cid
 from provenance_pipeline.chain.client import verify_claim
 from provenance_pipeline.records.fingerprint import compute_fingerprint
 
@@ -22,8 +23,8 @@ FETCH_TIMEOUT = (4, 8)
 MAX_GATEWAY_ATTEMPTS = 2
 MAX_CLAIM_BYTES = 1 * 1024 * 1024
 RETRYABLE_GATEWAY_STATUSES = frozenset({408, 425, 429, 500, 502, 503, 504})
-CID_PATTERN = re.compile(r"[A-Za-z0-9]+\Z")
 FINGERPRINT_PATTERN = re.compile(r"(?:0x)?([0-9a-fA-F]{64})\Z")
+CANONICAL_SHA256_PATTERN = re.compile(r"[0-9a-f]{64}\Z")
 FINGERPRINT_BODY_FIELDS = frozenset(
     {
         "platform",
@@ -88,9 +89,10 @@ def cid_from_uri(uri: str) -> str:
     elif "/ipfs/" in value:
         value = value.split("/ipfs/", 1)[1]
     cid = value.split("/", 1)[0]
-    if not cid or CID_PATTERN.fullmatch(cid) is None:
-        raise IPFSClaimInvalid("on-chain URI does not contain a valid CID")
-    return cid
+    try:
+        return normalize_ipfs_cid(cid)
+    except (TypeError, ValueError) as exc:
+        raise IPFSClaimInvalid("on-chain URI does not contain a valid CID") from exc
 
 
 def _normalize_gateway_url(gateway_url: str) -> str:
@@ -362,8 +364,8 @@ def validated_claim_fingerprint_body(document: dict) -> dict:
         for value in body.values()
     ):
         raise IPFSClaimInvalid("IPFS fingerprint_body has an invalid structure")
-    if FINGERPRINT_PATTERN.fullmatch(body["crop_sha256"]) is None or (
-        FINGERPRINT_PATTERN.fullmatch(body["embedding_sha256"]) is None
+    if CANONICAL_SHA256_PATTERN.fullmatch(body["crop_sha256"]) is None or (
+        CANONICAL_SHA256_PATTERN.fullmatch(body["embedding_sha256"]) is None
     ):
         raise IPFSClaimInvalid("IPFS fingerprint_body contains an invalid digest")
     return body

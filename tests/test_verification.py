@@ -11,6 +11,7 @@ from provenance_pipeline.verification import (
     IPFSGatewayUnavailable,
     fetch_ipfs_json,
     resolve_ipfs_gateways,
+    validated_claim_fingerprint_body,
     verify_anchored_fingerprint,
 )
 from provenance_pipeline.verification import MAX_CLAIM_BYTES
@@ -226,7 +227,11 @@ def test_oversized_claim_is_integrity_failure_without_fallback(monkeypatch) -> N
     assert calls == [f"{PRIMARY}/{CID}"]
 
 
-def test_invalid_cid_is_rejected_before_gateway_request(monkeypatch) -> None:
+@pytest.mark.parametrize(
+    "uri",
+    ["ipfs://not-a-valid-cid", "definitelynotacid", "BAFYUPPERCASECID"],
+)
+def test_invalid_cid_is_rejected_before_gateway_request(monkeypatch, uri) -> None:
     monkeypatch.setattr(
         "provenance_pipeline.verification.requests.get",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(
@@ -235,7 +240,7 @@ def test_invalid_cid_is_rejected_before_gateway_request(monkeypatch) -> None:
     )
 
     with pytest.raises(IPFSClaimInvalid, match="valid CID"):
-        fetch_ipfs_json("ipfs://not-a-valid-cid", PRIMARY, FALLBACK)
+        fetch_ipfs_json(uri, PRIMARY, FALLBACK)
 
 
 def test_malformed_claim_is_hard_failure_without_gateway_shopping(
@@ -300,6 +305,22 @@ def test_malformed_fingerprint_body_is_not_reported_as_a_mismatch(
             fallback_gateway_url=FALLBACK,
         )
     assert calls == [f"{PRIMARY}/{CID}"]
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("crop_sha256", "A" * 64),
+        ("embedding_sha256", "0x" + "b" * 64),
+        ("crop_sha256", "a" * 63),
+    ],
+)
+def test_fetched_claim_requires_canonical_sha256_digests(field, value) -> None:
+    claim = deepcopy(_claim())
+    claim["fingerprint_body"][field] = value
+
+    with pytest.raises(IPFSClaimInvalid, match="invalid digest"):
+        validated_claim_fingerprint_body(claim)
 
 
 def test_fingerprint_mismatch_is_result_without_gateway_shopping(

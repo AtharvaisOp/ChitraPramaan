@@ -28,6 +28,7 @@ REPOSITORY_ADDRESS_PATH = (
     CHAIN_DIRECTORY.parents[3] / "contracts" / "deployed_address.txt"
 )
 FINGERPRINT_PATTERN = re.compile(r"(?:0x)?([0-9a-fA-F]{64})\Z")
+TRANSACTION_HASH_PATTERN = re.compile(r"(?:0x)?([0-9a-fA-F]{64})\Z")
 _anchor_lock = Lock()
 logger = logging.getLogger(__name__)
 
@@ -352,11 +353,24 @@ def verify_claim(fingerprint_hex: str) -> dict:
 def transaction_hash_hex(receipt: TxReceipt | dict) -> str:
     """Normalize a Web3 transaction receipt hash to a 0x-prefixed string."""
 
-    value = receipt["transactionHash"]
-    if isinstance(value, str):
-        return value if value.startswith("0x") else f"0x{value}"
-    if hasattr(value, "hex"):
-        encoded = value.hex()
-    else:
-        encoded = bytes(value).hex()
-    return encoded if encoded.startswith("0x") else f"0x{encoded}"
+    try:
+        value = receipt["transactionHash"]
+        if isinstance(value, str):
+            encoded = value.strip()
+        elif hasattr(value, "hex"):
+            encoded = value.hex()
+        else:
+            encoded = bytes(value).hex()
+    except (KeyError, TypeError, ValueError) as exc:
+        raise AnchorOutcomeUnknown(
+            "The confirmed transaction hash is invalid. Check Sepolia before "
+            "submitting again."
+        ) from exc
+
+    match = TRANSACTION_HASH_PATTERN.fullmatch(encoded)
+    if match is None:
+        raise AnchorOutcomeUnknown(
+            "The confirmed transaction hash is invalid. Check Sepolia before "
+            "submitting again."
+        )
+    return f"0x{match.group(1).lower()}"
