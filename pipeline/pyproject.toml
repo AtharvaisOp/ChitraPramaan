@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "provenance-pipeline"
+version = "0.1.0"
+description = "Reusable face-match provenance claim pipeline"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.26",
+  "opencv-python>=4.9",
+  "Pillow>=10",
+  "requests>=2.31",
+  "web3>=7",
+]
+
+[project.optional-dependencies]
+face = [
+  "insightface>=0.7.3",
+  "onnxruntime>=1.17",
+]
+dev = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"provenance_pipeline.chain" = ["deployed_address.txt", "registry_abi.json"]
