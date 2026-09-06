@@ -1,0 +1,19 @@
+{
+  "name": "provenance-registry",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22 <27"
+  },
+  "scripts": {
+    "contract:compile": "hardhat compile",
+    "contract:test": "hardhat test mocha",
+    "contract:deploy:sepolia": "hardhat run contracts/deploy.ts --network sepolia"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox-mocha-ethers": "3.0.7",
+    "@types/node": "24.3.0",
+    "hardhat": "3.15.0",
+    "typescript": "5.9.2"
+  }
+}
