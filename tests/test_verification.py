@@ -11,6 +11,7 @@ from provenance_pipeline.verification import (
     IPFSGatewayUnavailable,
     fetch_ipfs_json,
     resolve_ipfs_gateways,
+    validated_claim_fingerprint_body,
     verify_anchored_fingerprint,
 )
 from provenance_pipeline.verification import MAX_CLAIM_BYTES
@@ -304,6 +305,22 @@ def test_malformed_fingerprint_body_is_not_reported_as_a_mismatch(
             fallback_gateway_url=FALLBACK,
         )
     assert calls == [f"{PRIMARY}/{CID}"]
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("crop_sha256", "A" * 64),
+        ("embedding_sha256", "0x" + "b" * 64),
+        ("crop_sha256", "a" * 63),
+    ],
+)
+def test_fetched_claim_requires_canonical_sha256_digests(field, value) -> None:
+    claim = deepcopy(_claim())
+    claim["fingerprint_body"][field] = value
+
+    with pytest.raises(IPFSClaimInvalid, match="invalid digest"):
+        validated_claim_fingerprint_body(claim)
 
 
 def test_fingerprint_mismatch_is_result_without_gateway_shopping(

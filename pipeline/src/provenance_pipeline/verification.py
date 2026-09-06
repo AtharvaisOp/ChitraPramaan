@@ -24,6 +24,7 @@ MAX_GATEWAY_ATTEMPTS = 2
 MAX_CLAIM_BYTES = 1 * 1024 * 1024
 RETRYABLE_GATEWAY_STATUSES = frozenset({408, 425, 429, 500, 502, 503, 504})
 FINGERPRINT_PATTERN = re.compile(r"(?:0x)?([0-9a-fA-F]{64})\Z")
+CANONICAL_SHA256_PATTERN = re.compile(r"[0-9a-f]{64}\Z")
 FINGERPRINT_BODY_FIELDS = frozenset(
     {
         "platform",
@@ -363,8 +364,8 @@ def validated_claim_fingerprint_body(document: dict) -> dict:
         for value in body.values()
     ):
         raise IPFSClaimInvalid("IPFS fingerprint_body has an invalid structure")
-    if FINGERPRINT_PATTERN.fullmatch(body["crop_sha256"]) is None or (
-        FINGERPRINT_PATTERN.fullmatch(body["embedding_sha256"]) is None
+    if CANONICAL_SHA256_PATTERN.fullmatch(body["crop_sha256"]) is None or (
+        CANONICAL_SHA256_PATTERN.fullmatch(body["embedding_sha256"]) is None
     ):
         raise IPFSClaimInvalid("IPFS fingerprint_body contains an invalid digest")
     return body
